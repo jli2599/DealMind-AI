@@ -1,0 +1,7 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "dealmind_ai": "./graph.py:graph"
+  },
+  "env": ".env"
+}

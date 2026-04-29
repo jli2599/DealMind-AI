@@ -1,0 +1,15 @@
+# .gitignore
+
+# Environment variables — never commit secrets
+.env
+
+# Virtual environment
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Mac
+.DS_Store

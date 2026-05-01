@@ -13,3 +13,10 @@ __pycache__/
 
 # Mac
 .DS_Store
+
+# LangGraph checkpoints and runtime files
+*.pckl
+*.langgraph_api
+.langgraph_api/
+*.server-controller-port.log
+.vscode/

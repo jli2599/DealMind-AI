@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from typing import Annotated, TypedDict
 import json
+import time
 
 from huggingface_hub import InferenceClient
+from groq import Groq
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
@@ -14,7 +16,7 @@ import os
 # ---------------------------------------------------------------------------
 # LLM
 # ---------------------------------------------------------------------------
-
+''' HuggingFace Version
 client = InferenceClient(
     model="meta-llama/Llama-3.3-70B-Instruct",
     token=os.environ["HUGGINGFACEHUB_API_TOKEN"],
@@ -30,6 +32,20 @@ def call_llm(system: str, user: str) -> str:
         temperature=0.2,
     )
     return response.choices[0].message.content
+'''
+client = Groq(api_key=os.environ["GROQ_API_KEY"])
+
+def call_llm(system: str, user: str, max_tokens: int = 1024) -> str:
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        max_tokens=max_tokens,
+        temperature=0.2,
+    )
+    return response.choices[0].message.content
 
 # ---------------------------------------------------------------------------
 # State
@@ -40,7 +56,10 @@ class State(TypedDict, total=False):
     user_message: str
     messages: Annotated[list, add_messages]
     next: str
-    completed_agents: list        # tracks which agents have run
+    completed_agents: list
+    critic_feedback: dict        # critic: orchestrator instructions
+    iteration: int               # tracks how many loops we've done
+    critic_approved: bool        # critic: route decision
     orchestrator_brief: str
     sourcing_output: str
     valuation_output: str
@@ -82,45 +101,83 @@ Reply ONLY with a JSON object in this exact format, nothing else:
 
 SOURCING_SYSTEM = """You are the Sourcing Agent for DealMind AI.
 Identify 8 credible buyer candidates (mix of strategic buyers and financial sponsors).
-For each return: Name | Type (Strategic/Sponsor) | HQ | Rationale (1 sentence).
-Format as a markdown table."""
+
+Reply ONLY with a JSON object in this exact format, nothing else:
+{
+  "buyers": [
+    {
+      "name": "<buyer name>",
+      "type": "<Strategic or Sponsor>",
+      "hq": "<city, country>",
+      "rationale": "<1 sentence>",
+      "fit_score": <1-10>
+    }
+  ]
+}"""
 
 VALUATION_SYSTEM = """You are the Valuation Agent for DealMind AI.
-Provide a concise valuation analysis:
-- EV/Revenue and EV/EBITDA multiple ranges (based on comparable SaaS transactions)
-- Implied enterprise value range
-- 3 key value drivers
-Format as clean markdown."""
+
+Reply ONLY with a JSON object in this exact format, nothing else:
+{
+  "ev_revenue_multiple": {"low": "<x>x", "high": "<x>x"},
+  "ev_ebitda_multiple": {"low": "<x>x", "high": "<x>x"},
+  "implied_ev": {"low": "<$XM>", "high": "<$XM>"},
+  "value_drivers": ["<driver 1>", "<driver 2>", "<driver 3>"]
+}"""
 
 STRATEGY_SYSTEM = """You are the Strategy Agent for DealMind AI.
-Assess the strategic rationale for an acquisition:
-- Top 3 synergy opportunities (revenue, cost, or technology)
-- Integration complexity: Low / Medium / High (with one line explanation)
-- Competitive positioning post-acquisition
-Format as clean markdown."""
+
+Reply ONLY with a JSON object in this exact format, nothing else:
+{
+  "synergies": [
+    {"type": "<Revenue/Cost/Technology>", "description": "<1 sentence>"}
+  ],
+  "integration_complexity": "<Low/Medium/High>",
+  "integration_rationale": "<1 sentence>",
+  "competitive_positioning": "<1-2 sentences>"
+}"""
 
 RISK_SYSTEM = """You are the Risk Agent for DealMind AI.
-Identify the top risks for this transaction.
-For each risk provide: Risk | Rating (Low/Medium/High) | Mitigation
-Cover: regulatory, execution, market timing, and technology risks.
-Format as a markdown table."""
+
+Reply ONLY with a JSON object in this exact format, nothing else:
+{
+  "risks": [
+    {
+      "risk": "<risk name>",
+      "category": "<Regulatory/Execution/Market/Technology>",
+      "rating": "<Low/Medium/High>",
+      "mitigation": "<1 sentence>"
+    }
+  ]
+}"""
 
 FINANCING_SYSTEM = """You are the Financing Agent for DealMind AI.
-Outline the likely deal financing structure:
-- Cash vs stock vs earnout split
-- Leverage capacity for sponsor buyers
-- Recommended deal structure (merger, asset sale, etc.)
-Format as clean markdown."""
+
+Reply ONLY with a JSON object in this exact format, nothing else:
+{
+  "deal_structure": "<merger/asset sale/carve-out>",
+  "consideration_mix": {
+    "cash": "<x%>",
+    "stock": "<x%>",
+    "earnout": "<x%>"
+  },
+  "leverage_capacity": "<1 sentence>",
+  "recommended_structure": "<1-2 sentences>"
+}"""
 
 POSITIONING_SYSTEM = """You are the Positioning Agent for DealMind AI.
-Recommend how to position and run this deal process:
-- 2-3 sentence growth narrative for the CIM
-- Process type: broad auction vs targeted (justify in one sentence)
-- Top 3 materials needed to launch
-Format as clean markdown."""
+
+Reply ONLY with a JSON object in this exact format, nothing else:
+{
+  "growth_narrative": "<2-3 sentences>",
+  "process_type": "<broad auction/targeted>",
+  "process_justification": "<1 sentence>",
+  "materials_needed": ["<material 1>", "<material 2>", "<material 3>"]
+}"""
 
 SYNTHESIZER_SYSTEM = """You are the Synthesizer for DealMind AI.
-You have received analysis from 6 specialist M&A agents. Combine their outputs into a final report.
+You will receive structured JSON outputs from 6 specialist M&A agents.
+Combine them into a polished final report in clean markdown.
 
 Your report must include:
 
@@ -128,40 +185,72 @@ Your report must include:
 3-4 sentences summarising the deal and key findings.
 
 ## Ranked Buyer List
-Rank the top 5 buyers from the sourcing analysis. For each include:
-- Rank, Name, Type (Strategic/Sponsor)
+Rank the top 5 buyers by fit score. For each include:
+- Rank, Name, Type, Fit Score
 - Strategic rationale (2-3 sentences)
-- Fit score out of 10
 - Recommended outreach approach
 
 ## Valuation Summary
-Key multiples and implied EV range.
+EV/Revenue and EV/EBITDA multiples, implied EV range, top value drivers.
 
 ## Risk Overview
-Top 3 risks and mitigations.
+Top 3 risks, ratings, and mitigations.
+
+## Financing & Deal Structure
+Recommended structure, consideration mix, leverage capacity.
 
 ## Process Recommendation
-Auction vs targeted, timeline, first steps.
+Process type, growth narrative, timeline, materials needed.
 
-Be specific. No generic statements."""
+Be specific. Pull directly from the data provided."""
+
+CRITIC_SYSTEM = """You are the Critic Agent for DealMind AI.
+Review the outputs from 6 specialist M&A agents and decide if they meet a high standard.
+
+Fail an agent if ANY of the following are true:
+- The output contains an "error" key
+- Figures are placeholder ranges (e.g. "$50M-$200M" with no justification)
+- Value drivers, risks, or rationale are generic and could apply to ANY company
+- The output does not reference the specific company by name
+- Key fields are null, missing, or empty
+- Buyers have no specific rationale tied to this company's product
+
+Reply ONLY with a JSON object in this exact format, nothing else:
+{
+  "approved": <true or false>,
+  "feedback": {
+    "sourcing": "<'pass' or specific instruction to improve>",
+    "valuation": "<'pass' or specific instruction to improve>",
+    "strategy": "<'pass' or specific instruction to improve>",
+    "risk": "<'pass' or specific instruction to improve>",
+    "financing": "<'pass' or specific instruction to improve>",
+    "positioning": "<'pass' or specific instruction to improve>"
+  }
+}
+
+Be strict. Only approve if ALL six agents have passed."""
+
 
 # ---------------------------------------------------------------------------
 # Nodes
 # ---------------------------------------------------------------------------
 
 def input_node(state: State) -> dict:
+    time.sleep(3)
     return {"messages": [HumanMessage(content=state["user_message"])]}
 
 def orchestrator_node(state: State) -> dict:
     completed = state.get("completed_agents", [])
-    
+    feedback = state.get("critic_feedback", {})
+
     prompt = f"""User request: {state["user_message"]}
 
-    Agents already called: {completed if completed else "none yet"}
-    Pick the next agent that has NOT been called yet, or finish if all six are done."""
+        Agents already completed satisfactorily: {completed if completed else "none yet"}
+        Critic feedback for improvement: {json.dumps(feedback, indent=2) if feedback else "none"}
+
+        Pick the next agent that has NOT been completed yet, or finish if all six are done."""
 
     raw = call_llm(ORCHESTRATOR_SYSTEM, prompt)
-
     try:
         clean = raw.strip().removeprefix("```json").removesuffix("```").strip()
         parsed = json.loads(clean)
@@ -191,13 +280,19 @@ def sourcing_node(state: State) -> dict:
         Key Facts: {', '.join(brief.get('key_facts', []))}
         Task: {brief.get('task', '')}
         """
-    result = call_llm(SOURCING_SYSTEM, user_prompt)
+    raw = call_llm(SOURCING_SYSTEM, user_prompt)
+    try:
+        clean = raw.strip().removeprefix("```json").removesuffix("```").strip()
+        result = json.loads(clean)
+    except json.JSONDecodeError:
+        result = {"error": raw}
     completed = state.get("completed_agents", [])
     return {
-        "sourcing_output": result,
+        "sourcing_output": json.dumps(result, indent=2),
         "completed_agents": completed + ["sourcing"],
-        "messages": [AIMessage(content=f"[Sourcing]\n{result}")],
+        "messages": [AIMessage(content=f"[Sourcing]\n{json.dumps(result, indent=2)}")],
     }
+
 
 def valuation_node(state: State) -> dict:
     brief = json.loads(state["orchestrator_brief"])
@@ -208,12 +303,17 @@ def valuation_node(state: State) -> dict:
         Key Facts: {', '.join(brief.get('key_facts', []))}
         Task: {brief.get('task', '')}
         """
-    result = call_llm(VALUATION_SYSTEM, user_prompt)
+    raw = call_llm(VALUATION_SYSTEM, user_prompt)
+    try:
+        clean = raw.strip().removeprefix("```json").removesuffix("```").strip()
+        result = json.loads(clean)
+    except json.JSONDecodeError:
+        result = {"error": raw}
     completed = state.get("completed_agents", [])
     return {
-        "sourcing_output": result,
+        "valuation_output": json.dumps(result, indent=2),
         "completed_agents": completed + ["valuation"],
-        "messages": [AIMessage(content=f"[Valuation]\n{result}")],
+        "messages": [AIMessage(content=f"[Valuation]\n{json.dumps(result, indent=2)}")],
     }
 
 def strategy_node(state: State) -> dict:
@@ -225,12 +325,17 @@ def strategy_node(state: State) -> dict:
         Key Facts: {', '.join(brief.get('key_facts', []))}
         Task: {brief.get('task', '')}
         """
-    result = call_llm(STRATEGY_SYSTEM, user_prompt)
+    raw = call_llm(STRATEGY_SYSTEM, user_prompt)
+    try:
+        clean = raw.strip().removeprefix("```json").removesuffix("```").strip()
+        result = json.loads(clean)
+    except json.JSONDecodeError:
+        result = {"error": raw}
     completed = state.get("completed_agents", [])
     return {
-        "sourcing_output": result,
+        "strategy_output": json.dumps(result, indent=2),
         "completed_agents": completed + ["strategy"],
-        "messages": [AIMessage(content=f"[Strategy]\n{result}")],
+        "messages": [AIMessage(content=f"[Strategy]\n{json.dumps(result, indent=2)}")],
     }
 
 def risk_node(state: State) -> dict:
@@ -242,12 +347,17 @@ def risk_node(state: State) -> dict:
         Key Facts: {', '.join(brief.get('key_facts', []))}
         Task: {brief.get('task', '')}
         """
-    result = call_llm(RISK_SYSTEM, user_prompt)
+    raw = call_llm(RISK_SYSTEM, user_prompt)
+    try:
+        clean = raw.strip().removeprefix("```json").removesuffix("```").strip()
+        result = json.loads(clean)
+    except json.JSONDecodeError:
+        result = {"error": raw}
     completed = state.get("completed_agents", [])
     return {
-        "sourcing_output": result,
+        "risk_output": json.dumps(result, indent=2),
         "completed_agents": completed + ["risk"],
-        "messages": [AIMessage(content=f"[Risk]\n{result}")],
+        "messages": [AIMessage(content=f"[Risk]\n{json.dumps(result, indent=2)}")],
     }
 
 def financing_node(state: State) -> dict:
@@ -259,12 +369,17 @@ def financing_node(state: State) -> dict:
         Key Facts: {', '.join(brief.get('key_facts', []))}
         Task: {brief.get('task', '')}
         """
-    result = call_llm(FINANCING_SYSTEM, user_prompt)
+    raw = call_llm(FINANCING_SYSTEM, user_prompt)
+    try:
+        clean = raw.strip().removeprefix("```json").removesuffix("```").strip()
+        result = json.loads(clean)
+    except json.JSONDecodeError:
+        result = {"error": raw}
     completed = state.get("completed_agents", [])
     return {
-        "sourcing_output": result,
+        "financing_output": json.dumps(result, indent=2),
         "completed_agents": completed + ["financing"],
-        "messages": [AIMessage(content=f"[Financing]\n{result}")],
+        "messages": [AIMessage(content=f"[Financing]\n{json.dumps(result, indent=2)}")],
     }
 
 def positioning_node(state: State) -> dict:
@@ -276,12 +391,17 @@ def positioning_node(state: State) -> dict:
         Key Facts: {', '.join(brief.get('key_facts', []))}
         Task: {brief.get('task', '')}
         """
-    result = call_llm(POSITIONING_SYSTEM, user_prompt)
+    raw = call_llm(POSITIONING_SYSTEM, user_prompt)
+    try:
+        clean = raw.strip().removeprefix("```json").removesuffix("```").strip()
+        result = json.loads(clean)
+    except json.JSONDecodeError:
+        result = {"error": raw}
     completed = state.get("completed_agents", [])
     return {
-        "sourcing_output": result,
+        "positioning_output": json.dumps(result, indent=2),
         "completed_agents": completed + ["positioning"],
-        "messages": [AIMessage(content=f"[Positioning]\n{result}")],
+        "messages": [AIMessage(content=f"[Positioning]\n{json.dumps(result, indent=2)}")],
     }
 
 def synthesizer_node(state: State) -> dict:
@@ -306,22 +426,78 @@ def synthesizer_node(state: State) -> dict:
         POSITIONING OUTPUT:
         {state.get('positioning_output', '')}
         """
-    response = client.chat_completion(
-        messages=[
-            {"role": "system", "content": SYNTHESIZER_SYSTEM},
-            {"role": "user", "content": prompt},
-        ],
-        max_tokens=4096,        # increased from 1024
-        temperature=0.2,
-    )
-    result = response.choices[0].message.content
+    result = call_llm(SYNTHESIZER_SYSTEM, prompt, max_tokens=4096)
     return {
         "messages": [AIMessage(content=f"[Final Report]\n{result}")],
+    }
+
+def critic_node(state: State) -> dict:
+    iteration = state.get("iteration", 0)
+
+    if iteration >= 2:
+        return {
+            "critic_approved": True,
+            "critic_feedback": {},
+            "iteration": iteration + 1,
+            "messages": [AIMessage(content="[Critic] Max iterations reached. Approving.")],
+        }
+
+    previous_feedback = state.get("critic_feedback", {})
+    already_passed = [agent for agent, note in previous_feedback.items() if note == "pass"]
+
+    prompt = f"""
+        Company being analysed: {state.get('user_message', '')}
+
+        Agents that already passed review and must be marked "pass" again: {already_passed}
+
+        Only re-evaluate agents NOT in the above list:
+        SOURCING OUTPUT: {state.get('sourcing_output', 'missing')}
+        VALUATION OUTPUT: {state.get('valuation_output', 'missing')}
+        STRATEGY OUTPUT: {state.get('strategy_output', 'missing')}
+        RISK OUTPUT: {state.get('risk_output', 'missing')}
+        FINANCING OUTPUT: {state.get('financing_output', 'missing')}
+        POSITIONING OUTPUT: {state.get('positioning_output', 'missing')}
+
+        For agents in the already passed list, set their feedback to "pass" without re-evaluating.
+        Only strictly evaluate the agents NOT in the already passed list.
+        """
+    raw = call_llm(CRITIC_SYSTEM, prompt)
+    try:
+        clean = raw.strip().removeprefix("```json").removesuffix("```").strip()
+        parsed = json.loads(clean)
+        approved = parsed.get("approved", False)
+        feedback = parsed.get("feedback", {})
+    except json.JSONDecodeError:
+        approved = False
+        feedback = {}
+
+    # Force passing agents to stay as pass regardless of LLM output
+    for agent in already_passed:
+        feedback[agent] = "pass"
+
+    failed_agents = [agent for agent, note in feedback.items() if note != "pass"]
+    passing_agents = [agent for agent, note in feedback.items() if note == "pass"]
+
+    current_completed = state.get("completed_agents", [])
+    updated_completed = [a for a in current_completed if a not in failed_agents]
+    for agent in passing_agents:
+        if agent not in updated_completed:
+            updated_completed.append(agent)
+
+    return {
+        "critic_approved": approved,
+        "critic_feedback": feedback,
+        "completed_agents": updated_completed,
+        "iteration": iteration + 1,
+        "messages": [AIMessage(content=f"[Critic] Approved: {approved}\nFailed: {failed_agents}\nPassing: {passing_agents}\n{json.dumps(feedback, indent=2)}")],
     }
 
 # ---------------------------------------------------------------------------
 # Graph
 # ---------------------------------------------------------------------------
+
+def route_critic(state: State) -> str:
+    return "synthesizer" if state.get("critic_approved") else "orchestrator"
 
 def build_graph():
     g = StateGraph(State)
@@ -334,7 +510,8 @@ def build_graph():
     g.add_node("risk", risk_node)
     g.add_node("financing", financing_node)
     g.add_node("positioning", positioning_node)
-    g.add_node("synthesizer", synthesizer_node)   # new
+    g.add_node("critic", critic_node)
+    g.add_node("synthesizer", synthesizer_node)
 
     g.add_edge(START, "input")
     g.add_edge("input", "orchestrator")
@@ -349,7 +526,7 @@ def build_graph():
             "risk": "risk",
             "financing": "financing",
             "positioning": "positioning",
-            "finish": "synthesizer",              # finish now goes to synthesizer
+            "finish": "critic",         # finish now goes to critic first
         }
     )
 
@@ -359,7 +536,18 @@ def build_graph():
     g.add_edge("risk", "orchestrator")
     g.add_edge("financing", "orchestrator")
     g.add_edge("positioning", "orchestrator")
-    g.add_edge("synthesizer", END)               # synthesizer goes to END
+
+    # Critic either approves → synthesizer or rejects → orchestrator
+    g.add_conditional_edges(
+        "critic",
+        route_critic,
+        {
+            "synthesizer": "synthesizer",
+            "orchestrator": "orchestrator",
+        }
+    )
+
+    g.add_edge("synthesizer", END)
 
     return g.compile()
 

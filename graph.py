@@ -13,6 +13,8 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 import os
 
+from sourcing_agent import sourcing_subgraph, extract_json
+
 # ---------------------------------------------------------------------------
 # LLM
 # ---------------------------------------------------------------------------
@@ -36,16 +38,34 @@ def call_llm(system: str, user: str) -> str:
 client = Groq(api_key=os.environ["GROQ_API_KEY"])
 
 def call_llm(system: str, user: str, max_tokens: int = 1024) -> str:
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
-        max_tokens=max_tokens,
-        temperature=0.2,
-    )
-    return response.choices[0].message.content
+    time.sleep(2)
+    max_retries = 5
+    retry_delay = 10
+
+    for attempt in range(max_retries):
+        try:
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+                max_tokens=max_tokens,
+                temperature=0.2,
+            )
+            return response.choices[0].message.content
+
+        except Exception as e:
+            error_str = str(e)
+            if "429" in error_str or "rate_limit" in error_str.lower():
+                if attempt < max_retries - 1:
+                    wait = retry_delay * (attempt + 1)
+                    print(f"[Rate limit hit] Waiting {wait}s before retry {attempt + 1}/{max_retries}")
+                    time.sleep(wait)
+                else:
+                    raise RuntimeError(f"Rate limit exceeded after {max_retries} retries")
+            else:
+                raise
 
 # ---------------------------------------------------------------------------
 # State
@@ -99,6 +119,8 @@ Reply ONLY with a JSON object in this exact format, nothing else:
   }
 }"""
 
+#Replaced with subagent
+''' 
 SOURCING_SYSTEM = """You are the Sourcing Agent for DealMind AI.
 Identify 8 credible buyer candidates (mix of strategic buyers and financial sponsors).
 
@@ -114,6 +136,7 @@ Reply ONLY with a JSON object in this exact format, nothing else:
     }
   ]
 }"""
+'''
 
 VALUATION_SYSTEM = """You are the Valuation Agent for DealMind AI.
 
@@ -210,30 +233,34 @@ Process type, growth narrative, timeline, materials needed.
 Be specific. Pull directly from the data provided."""
 
 CRITIC_SYSTEM = """You are the Critic Agent for DealMind AI.
-Review the outputs from 6 specialist M&A agents and decide if they meet a high standard.
+Review the outputs from 6 specialist M&A agents.
 
-Fail an agent if ANY of the following are true:
+ONLY fail an agent if ANY of the following hard failures are present:
 - The output contains an "error" key
-- Figures are placeholder ranges (e.g. "$50M-$200M" with no justification)
-- Value drivers, risks, or rationale are generic and could apply to ANY company
-- The output does not reference the specific company by name
-- Key fields are null, missing, or empty
-- Buyers have no specific rationale tied to this company's product
+- A required field is null, missing, or an empty string
+- A list field (buyers, risks, synergies) has fewer than 3 items
+- fit_score is missing or not a number
+
+Do NOT fail an agent for:
+- Subjective quality issues (e.g. "could be more detailed")
+- Missing HQ when the data was not available
+- Ranges that are justified with reasoning
+- Generic language if the core fields are populated
 
 Reply ONLY with a JSON object in this exact format, nothing else:
 {
   "approved": <true or false>,
   "feedback": {
-    "sourcing": "<'pass' or specific instruction to improve>",
-    "valuation": "<'pass' or specific instruction to improve>",
-    "strategy": "<'pass' or specific instruction to improve>",
-    "risk": "<'pass' or specific instruction to improve>",
-    "financing": "<'pass' or specific instruction to improve>",
-    "positioning": "<'pass' or specific instruction to improve>"
+    "sourcing": "<'pass' or specific hard failure only>",
+    "valuation": "<'pass' or specific hard failure only>",
+    "strategy": "<'pass' or specific hard failure only>",
+    "risk": "<'pass' or specific hard failure only>",
+    "financing": "<'pass' or specific hard failure only>",
+    "positioning": "<'pass' or specific hard failure only>"
   }
 }
 
-Be strict. Only approve if ALL six agents have passed."""
+Approve if all hard failures above are absent. Be lenient on quality."""
 
 
 # ---------------------------------------------------------------------------
@@ -256,13 +283,9 @@ def orchestrator_node(state: State) -> dict:
         Pick the next agent that has NOT been completed yet, or finish if all six are done."""
 
     raw = call_llm(ORCHESTRATOR_SYSTEM, prompt)
-    try:
-        clean = raw.strip().removeprefix("```json").removesuffix("```").strip()
-        parsed = json.loads(clean)
-        next_agent = parsed.get("agent", "finish")
-        brief = parsed.get("brief", {})
-    except json.JSONDecodeError:
-        raise ValueError(f"Orchestrator did not return valid JSON: {raw}")
+    parsed = extract_json(raw)
+    next_agent = parsed.get("agent", "finish")
+    brief = parsed.get("brief", {})
 
     return {
         "next": next_agent,
@@ -278,24 +301,13 @@ def route(state: State) -> str:
 
 def sourcing_node(state: State) -> dict:
     brief = json.loads(state["orchestrator_brief"])
-    user_prompt = f"""
-        Company: {brief.get('company', 'Unknown')}
-        Sector: {brief.get('sector', 'Unknown')}
-        Deal Size: {brief.get('deal_size', 'Unknown')}
-        Key Facts: {', '.join(brief.get('key_facts', []))}
-        Task: {brief.get('task', '')}
-        """
-    raw = call_llm(SOURCING_SYSTEM, user_prompt)
-    try:
-        clean = raw.strip().removeprefix("```json").removesuffix("```").strip()
-        result = json.loads(clean)
-    except json.JSONDecodeError:
-        result = {"error": raw}
+    result = sourcing_subgraph.invoke({"brief": brief})
+    buyers = result.get("buyers", {"error": "no output"})
     completed = state.get("completed_agents", [])
     return {
-        "sourcing_output": json.dumps(result, indent=2),
+        "sourcing_output": json.dumps(buyers, indent=2),
         "completed_agents": completed + ["sourcing"],
-        "messages": [AIMessage(content=f"[Sourcing]\n{json.dumps(result, indent=2)}")],
+        "messages": [AIMessage(content=f"[Sourcing]\n{json.dumps(buyers, indent=2)}")],
     }
 
 
@@ -309,11 +321,7 @@ def valuation_node(state: State) -> dict:
         Task: {brief.get('task', '')}
         """
     raw = call_llm(VALUATION_SYSTEM, user_prompt)
-    try:
-        clean = raw.strip().removeprefix("```json").removesuffix("```").strip()
-        result = json.loads(clean)
-    except json.JSONDecodeError:
-        result = {"error": raw}
+    result = extract_json(raw)
     completed = state.get("completed_agents", [])
     return {
         "valuation_output": json.dumps(result, indent=2),
@@ -331,11 +339,7 @@ def strategy_node(state: State) -> dict:
         Task: {brief.get('task', '')}
         """
     raw = call_llm(STRATEGY_SYSTEM, user_prompt)
-    try:
-        clean = raw.strip().removeprefix("```json").removesuffix("```").strip()
-        result = json.loads(clean)
-    except json.JSONDecodeError:
-        result = {"error": raw}
+    result = extract_json(raw)
     completed = state.get("completed_agents", [])
     return {
         "strategy_output": json.dumps(result, indent=2),
@@ -353,11 +357,7 @@ def risk_node(state: State) -> dict:
         Task: {brief.get('task', '')}
         """
     raw = call_llm(RISK_SYSTEM, user_prompt)
-    try:
-        clean = raw.strip().removeprefix("```json").removesuffix("```").strip()
-        result = json.loads(clean)
-    except json.JSONDecodeError:
-        result = {"error": raw}
+    result = extract_json(raw)
     completed = state.get("completed_agents", [])
     return {
         "risk_output": json.dumps(result, indent=2),
@@ -375,11 +375,7 @@ def financing_node(state: State) -> dict:
         Task: {brief.get('task', '')}
         """
     raw = call_llm(FINANCING_SYSTEM, user_prompt)
-    try:
-        clean = raw.strip().removeprefix("```json").removesuffix("```").strip()
-        result = json.loads(clean)
-    except json.JSONDecodeError:
-        result = {"error": raw}
+    result = extract_json(raw)
     completed = state.get("completed_agents", [])
     return {
         "financing_output": json.dumps(result, indent=2),
@@ -397,11 +393,7 @@ def positioning_node(state: State) -> dict:
         Task: {brief.get('task', '')}
         """
     raw = call_llm(POSITIONING_SYSTEM, user_prompt)
-    try:
-        clean = raw.strip().removeprefix("```json").removesuffix("```").strip()
-        result = json.loads(clean)
-    except json.JSONDecodeError:
-        result = {"error": raw}
+    result = extract_json(raw)
     completed = state.get("completed_agents", [])
     return {
         "positioning_output": json.dumps(result, indent=2),
@@ -467,14 +459,9 @@ def critic_node(state: State) -> dict:
         Only strictly evaluate the agents NOT in the already passed list.
         """
     raw = call_llm(CRITIC_SYSTEM, prompt)
-    try:
-        clean = raw.strip().removeprefix("```json").removesuffix("```").strip()
-        parsed = json.loads(clean)
-        approved = parsed.get("approved", False)
-        feedback = parsed.get("feedback", {})
-    except json.JSONDecodeError:
-        approved = False
-        feedback = {}
+    parsed = extract_json(raw)
+    approved = parsed.get("approved", False)
+    feedback = parsed.get("feedback", {})
 
     # Force passing agents to stay as pass regardless of LLM output
     for agent in already_passed:

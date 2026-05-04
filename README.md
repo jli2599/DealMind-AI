@@ -102,6 +102,8 @@ Management willing to roll 15% equity. Run a full M&A analysis.
 
 Uses **Llama 3.3 70B Instruct** via [Groq](https://console.groq.com) — fast, free tier, no GPU required. Groq's free tier provides 14,400 requests/day which is sufficient for development and demo use.
 
+> **Note on rate limits:** Each full analysis makes 10-15 LLM calls. On Groq's free tier (12,000 tokens per minute), running multiple analyses back-to-back may trigger a 429 rate limit error (can happen on 2-3 consecutive runs). If this happens, wait some time before retrying — the token window resets every minute, or ideally replace the free API token with paid tokens. The code includes automatic retry logic with exponential backoff, but very rapid consecutive runs may still hit the limit. For demos, allow at least 1-2 minutes between runs.
+
 ## Agent Design
 
 | Agent | Type | Notes |

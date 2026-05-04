@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DealMind AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0a0f1e;
+    --navy-mid: #111827;
+    --navy-light: #1a2540;
+    --blue: #38b6e8;
+    --blue-dim: #1e7ca8;
+    --white: #f0f4ff;
+    --muted: #8892aa;
+    --border: rgba(56, 182, 232, 0.15);
+    --card: rgba(255,255,255,0.03);
+    --success: #34d399;
+    --warning: #fbbf24;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--navy);
+    color: var(--white);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(56,182,232,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56,182,232,0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Glow orb */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -200px;
+    right: -200px;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(56,182,232,0.08) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 40px 0 56px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 52px;
+    animation: fadeDown 0.6s ease both;
+  }
+
+  header img {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+  }
+
+  .brand h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--white);
+  }
+
+  .brand p {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .badge {
+    margin-left: auto;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 11px;
+    color: var(--blue);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  /* Section titles */
+  .section-label {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--blue);
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+    line-height: 1.2;
+  }
+
+  .section-sub {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 32px;
+    font-weight: 300;
+  }
+
+  /* Form card */
+  .form-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 36px;
+    margin-bottom: 20px;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  /* Textarea */
+  .field-label {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  textarea {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    color: var(--white);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 300;
+    resize: vertical;
+    min-height: 130px;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+    line-height: 1.6;
+  }
+
+  textarea::placeholder { color: rgba(136,146,170,0.5); }
+
+  textarea:focus {
+    border-color: rgba(56,182,232,0.4);
+    background: rgba(56,182,232,0.04);
+  }
+
+  /* Divider */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 28px 0;
+  }
+
+  /* Checkbox grid */
+  .checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+    margin-top: 4px;
+  }
+
+  .checkbox-item {
+    position: relative;
+  }
+
+  .checkbox-item input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .checkbox-item label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--muted);
+    transition: all 0.18s ease;
+    user-select: none;
+  }
+
+  .checkbox-item label:hover {
+    border-color: rgba(56,182,232,0.3);
+    color: var(--white);
+    background: rgba(56,182,232,0.05);
+  }
+
+  .checkbox-item input:checked + label {
+    border-color: var(--blue);
+    background: rgba(56,182,232,0.1);
+    color: var(--white);
+  }
+
+  .checkbox-box {
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid currentColor;
+    border-radius: 4px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.18s;
+  }
+
+  .checkbox-item input:checked + label .checkbox-box {
+    background: var(--blue);
+    border-color: var(--blue);
+  }
+
+  .checkbox-item input:checked + label .checkbox-box::after {
+    content: '';
+    width: 8px;
+    height: 5px;
+    border-left: 2px solid var(--navy);
+    border-bottom: 2px solid var(--navy);
+    transform: rotate(-45deg) translateY(-1px);
+    display: block;
+  }
+
+  /* Submit button */
+  .submit-wrap {
+    margin-top: 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  button.run-btn {
+    background: var(--blue);
+    color: var(--navy);
+    border: none;
+    border-radius: 12px;
+    padding: 15px 36px;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  button.run-btn:hover:not(:disabled) {
+    background: #5bc8f0;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(56,182,232,0.3);
+  }
+
+  button.run-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .run-hint {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* Progress */
+  .progress-wrap {
+    display: none;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px 36px;
+    margin-bottom: 20px;
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .progress-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--blue);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  .agent-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .agent-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.02);
+    font-size: 13px;
+    color: var(--muted);
+    transition: all 0.3s;
+  }
+
+  .agent-row.active {
+    color: var(--blue);
+    background: rgba(56,182,232,0.07);
+  }
+
+  .agent-row.done {
+    color: var(--success);
+  }
+
+  .agent-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+    opacity: 0.4;
+  }
+
+  .agent-row.active .agent-dot {
+    opacity: 1;
+    animation: pulse 1s ease infinite;
+  }
+
+  .agent-row.done .agent-dot { opacity: 1; }
+
+  /* Results */
+  .results-wrap {
+    display: none;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
+  .tab-bar {
+    display: flex;
+    gap: 6px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 4px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .tab {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.18s;
+    border: none;
+    background: none;
+    letter-spacing: 0.02em;
+  }
+
+  .tab:hover { color: var(--white); }
+
+  .tab.active {
+    background: var(--blue);
+    color: var(--navy);
+    font-weight: 700;
+  }
+
+  .tab-panel {
+    display: none;
+  }
+
+  .tab-panel.active { display: block; }
+
+  .output-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 32px;
+  }
+
+  .output-card h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: var(--white);
+  }
+
+  .output-card h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--blue);
+    margin: 20px 0 8px;
+  }
+
+  .output-card p {
+    font-size: 14px;
+    color: rgba(240,244,255,0.75);
+    line-height: 1.7;
+    font-weight: 300;
+    margin-bottom: 8px;
+  }
+
+  /* Table styling */
+  .output-card table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-top: 8px;
+  }
+
+  .output-card th {
+    text-align: left;
+    padding: 10px 12px;
+    color: var(--blue);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+  }
+
+  .output-card td {
+    padding: 12px 12px;
+    border-bottom: 1px solid rgba(56,182,232,0.06);
+    color: rgba(240,244,255,0.75);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+
+  .output-card tr:last-child td { border-bottom: none; }
+
+  /* JSON viewer */
+  .json-view {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: rgba(240,244,255,0.6);
+    overflow-x: auto;
+    white-space: pre-wrap;
+    line-height: 1.6;
+  }
+
+  /* Score badge */
+  .score {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    background: rgba(56,182,232,0.15);
+    color: var(--blue);
+  }
+
+  .score.high { background: rgba(52,211,153,0.15); color: var(--success); }
+  .score.low { background: rgba(251,191,36,0.15); color: var(--warning); }
+
+  /* Risk badge */
+  .risk-high { color: #f87171; }
+  .risk-medium { color: var(--warning); }
+  .risk-low { color: var(--success); }
+
+  /* Buyer card */
+  .buyer-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 10px;
+    background: rgba(255,255,255,0.02);
+    transition: border-color 0.2s;
+  }
+
+  .buyer-card:hover { border-color: rgba(56,182,232,0.3); }
+
+  .buyer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .buyer-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .buyer-meta {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .buyer-rationale {
+    font-size: 13px;
+    color: rgba(240,244,255,0.65);
+    line-height: 1.5;
+    font-weight: 300;
+  }
+
+  /* Error */
+  .error-msg {
+    background: rgba(248,113,113,0.08);
+    border: 1px solid rgba(248,113,113,0.2);
+    border-radius: 12px;
+    padding: 16px 20px;
+    color: #f87171;
+    font-size: 13px;
+  }
+
+  /* Animations */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .form-section { animation-delay: 0.1s; }
+  .objectives-section { animation-delay: 0.2s; }
+
+  .report-h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--white);
+    margin: 32px 0 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    letter-spacing: -0.01em;
+    }
+
+    .report-h2:first-child { margin-top: 0; }
+
+    .report-h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--blue);
+    margin: 20px 0 8px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    }
+
+    .report-item {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 18px 20px;
+        margin-bottom: 14px;
+        background: rgba(255,255,255,0.02);
+        }
+
+        .report-item-title {
+        font-family: 'Syne', sans-serif;
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--white);
+        margin-bottom: 10px;
+        }
+
+        .report-item-body {
+        font-size: 13px;
+        color: rgba(240,244,255,0.65);
+        line-height: 1.7;
+        font-weight: 300;
+        }
+
+        .report-h2 {
+        font-family: 'Syne', sans-serif;
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--white);
+        margin: 36px 0 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border);
+        letter-spacing: -0.01em;
+        }
+
+        .report-h2:first-child { margin-top: 0; }
+
+        .report-bullet {
+        font-size: 14px;
+        color: rgba(240,244,255,0.7);
+        line-height: 1.6;
+        padding-left: 16px;
+        margin-bottom: 8px;
+        position: relative;
+        font-weight: 300;
+        }
+
+        .report-bullet::before {
+        content: '—';
+        position: absolute;
+        left: 0;
+        color: var(--blue);
+        font-size: 12px;
+        }
+
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAkACQAAD/4QCMRXhpZgAATU0AKgAAAAgABQESAAMAAAABAAEAAAEaAAUAAAABAAAASgEbAAUAAAABAAAAUgEoAAMAAAABAAIAAIdpAAQAAAABAAAAWgAAAAAAAACQAAAAAQAAAJAAAAABAAOgAQADAAAAAQABAACgAgAEAAAAAQAAANKgAwAEAAAAAQAAANIAAAAA/+0AOFBob3Rvc2hvcCAzLjAAOEJJTQQEAAAAAAAAOEJJTQQlAAAAAAAQ1B2M2Y8AsgTpgAmY7PhCfv/AABEIANIA0gMBIgACEQEDEQH/xAAfAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgv/xAC1EAACAQMDAgQDBQUEBAAAAX0BAgMABBEFEiExQQYTUWEHInEUMoGRoQgjQrHBFVLR8CQzYnKCCQoWFxgZGiUmJygpKjQ1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4eLj5OXm5+jp6vHy8/T19vf4+fr/xAAfAQADAQEBAQEBAQEBAAAAAAAAAQIDBAUGBwgJCgv/xAC1EQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIygQgUQpGhscEJIzNS8BVictEKFiQ04SXxFxgZGiYnKCkqNTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqCg4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2dri4+Tl5ufo6ery8/T19vf4+fr/2wBDAAICAgICAgMCAgMFAwMDBQYFBQUFBggGBgYGBggKCAgICAgICgoKCgoKCgoMDAwMDAwODg4ODg8PDw8PDw8PDw//2wBDAQICAgQEBAcEBAcQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/3QAEAA7/2gAMAwEAAhEDEQA/APyi/aq/5Og+MH/Y4+IP/TjPXgle+/tVf8nPfGD/ALHHxB/6cZ68Cr72kvdXoeLPdhRRRWliQoooosAUUUUgCiiigAooop2AKKKKQBRRRTSAKXPGKSijlAKKKKEgDrSkYpKKGgCiiikAUUUU0AUUUVWoH//Q/KP9qoH/AIaf+MH/AGOPiD/04z14HXvf7VR/4yg+MA/6nHxB/wCnGevBK++oP3EeLPdhRRRWrJCiiilYAooopu4BRRRTAKKKKACiiilYAooopWAKKKKbQBRRRSsAUUUU7gFFFFS2AUUUUJAFFFFVcD//0fyi/aq/5Og+MH/Y4+IP/TjPXgle9/tVf8nQfGD/ALHHxB/6cZ68Er76ivdXoeLPdhRRRWyJCiiimAUUUUrdACiiimAUUUUAFFFFKwCkYpKKKLAFFFFABRRRQAUUUVLQBRRRQkAUUUVQBRRRRqB//9L8ov2qv+ToPjB/2OPiD/04z14JXvf7VX/J0Hxg/wCxx8Qf+nGevBK+9o/CvQ8We7CiiitbEhRRRVAFFFFABRRRQAUUUuCelACUV7b8Nf2efiz8VJIn8M6HKljJz9uugYLUL0yHYfP9EDH2r1zx3+xB8Y/CNh/aGkpbeJUjQNLHYswnRsfNtjkClwD025Y/3RXZTy+vKDnGDsePiOIMDSqqhUrRUn0b/q3zPjair+p6VqejXsum6vaS2V3AdskMyNHIp9CrAEVQrkaPXi01dBRRRSGFFFFABRRRSsAUUUUgCiiiiwBRRRTsB//T/KL9qr/k6D4wf9jj4g/9OM9eCV73+1V/ydB8YP8AscfEH/pxnrwSvvaHwr0PFnuwooorYkKKKKYBRRRSsAUUUo60MDp/Bfg7X/H/AIo0/wAIeGbc3WpalII4k6AcEszHsqqCzHsATX7YfCj9kX4SfDi0tbq/00eINbRE827vR5sYlAG4xQkbUG77pILAd6+VP2LfB3jjSPDF/wDErwRZaPqk15O9lLDfGe3uRHCFYrDcJ5iIGLAkGIZIGWwBj7WH7T+r+H0kf4j+B9X0CGIFnurZF1SzRV5LM9rukUe7RA" alt="DealMind" onerror="this.style.display='none'">
+    <div class="brand">
+      <h1>DealMind</h1>
+      <p>M&A Intelligence Platform</p>
+    </div>
+    <div class="badge">AI-Powered</div>
+  </header>
+
+  <!-- Intro -->
+  <div style="animation: fadeUp 0.5s ease both;">
+    <div class="section-label">New Analysis</div>
+    <h2 class="section-title">Describe the deal</h2>
+    <p class="section-sub">Provide company details and your objectives — DealMind will run a full M&A analysis across all six specialist agents.</p>
+  </div>
+
+  <!-- Form -->
+  <div class="form-card form-section">
+    <label class="field-label" for="company-desc">Company Description</label>
+    <textarea
+      id="company-desc"
+      placeholder="e.g. ClearPath Legal is a B2B SaaS platform providing AI-driven contract management software to mid-sized law firms. Founded 2020, 95 employees, $22M ARR, 118% NRR, 18% EBITDA margin, headquartered in Chicago IL. Targeting a $180M exit within 12 months..."
+    ></textarea>
+
+    <div class="divider"></div>
+
+    <div class="section-label">Seller Objectives</div>
+    <p style="font-size:13px; color:var(--muted); margin-bottom:16px; font-weight:300;">Select all that apply</p>
+
+    <div class="checkbox-grid">
+      <div class="checkbox-item">
+        <input type="checkbox" id="obj-valuation" value="Maximize valuation">
+        <label for="obj-valuation">
+          <span class="checkbox-box"></span>
+          Maximize Valuation
+        </label>
+      </div>
+      <div class="checkbox-item">
+        <input type="checkbox" id="obj-exit" value="Quick exit within 6 months">
+        <label for="obj-exit">
+          <span class="checkbox-box"></span>
+          Quick Exit (&lt;6 months)
+        </label>
+      </div>
+      <div class="checkbox-item">
+        <input type="checkbox" id="obj-culture" value="Preserve company culture and team">
+        <label for="obj-culture">
+          <span class="checkbox-box"></span>
+          Preserve Culture & Team
+        </label>
+      </div>
+      <div class="checkbox-item">
+        <input type="checkbox" id="obj-rollover" value="Management equity rollover (10-20%)">
+        <label for="obj-rollover">
+          <span class="checkbox-box"></span>
+          Management Rollover
+        </label>
+      </div>
+      <div class="checkbox-item">
+        <input type="checkbox" id="obj-certainty" value="High deal certainty — prefer a guaranteed close over maximum price">
+        <label for="obj-certainty">
+          <span class="checkbox-box"></span>
+          Deal Certainty
+        </label>
+      </div>
+      <div class="checkbox-item">
+        <input type="checkbox" id="obj-rd" value="Partner who will invest in R&D and product development">
+        <label for="obj-rd">
+          <span class="checkbox-box"></span>
+          R&amp;D Investment
+        </label>
+      </div>
+      <div class="checkbox-item">
+        <input type="checkbox" id="obj-us" value="Prefer a US-based acquirer to maintain domestic operations">
+        <label for="obj-us">
+          <span class="checkbox-box"></span>
+          US-Based Acquirer
+        </label>
+      </div>
+      <div class="checkbox-item">
+        <input type="checkbox" id="obj-intl" value="Open to international acquirers for global expansion">
+        <label for="obj-intl">
+          <span class="checkbox-box"></span>
+          Open to International
+        </label>
+      </div>
+    </div>
+
+    <div class="submit-wrap">
+      <button class="run-btn" id="run-btn" onclick="runAnalysis()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M3 2.5L13 8L3 13.5V2.5Z" fill="currentColor"/>
+        </svg>
+        Run Analysis
+      </button>
+      <span class="run-hint">Takes 2–4 minutes across 6 subagents</span>
+    </div>
+  </div>
+
+  <!-- Progress -->
+  <div class="progress-wrap" id="progress-wrap">
+    <div class="progress-title">
+      <div class="spinner"></div>
+      Running M&A Analysis
+    </div>
+    <div class="agent-list" id="agent-list">
+      <div class="agent-row" id="agent-orchestrator"><div class="agent-dot"></div>Orchestrator — parsing deal brief</div>
+      <div class="agent-row" id="agent-sourcing"><div class="agent-dot"></div>Sourcing Agent — identifying buyers</div>
+      <div class="agent-row" id="agent-valuation"><div class="agent-dot"></div>Valuation Agent — estimating EV range</div>
+      <div class="agent-row" id="agent-strategy"><div class="agent-dot"></div>Strategy Agent — assessing synergies</div>
+      <div class="agent-row" id="agent-risk"><div class="agent-dot"></div>Risk Agent — flagging deal risks</div>
+      <div class="agent-row" id="agent-financing"><div class="agent-dot"></div>Financing Agent — structuring the deal</div>
+      <div class="agent-row" id="agent-positioning"><div class="agent-dot"></div>Positioning Agent — crafting the narrative</div>
+      <div class="agent-row" id="agent-critic"><div class="agent-dot"></div>Critic — reviewing quality</div>
+      <div class="agent-row" id="agent-synthesizer"><div class="agent-dot"></div>Synthesizer — compiling final report</div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="results-wrap" id="results-wrap">
+    <div class="results-header">
+      <div>
+        <div class="section-label">Analysis Complete</div>
+        <h2 class="section-title" style="font-size:22px;">M&A Report</h2>
+      </div>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab active" onclick="showTab('report')">Final Report</button>
+      <button class="tab" onclick="showTab('sourcing')">Sourcing</button>
+      <button class="tab" onclick="showTab('valuation')">Valuation</button>
+      <button class="tab" onclick="showTab('strategy')">Strategy</button>
+      <button class="tab" onclick="showTab('risk')">Risk</button>
+      <button class="tab" onclick="showTab('financing')">Financing</button>
+      <button class="tab" onclick="showTab('positioning')">Positioning</button>
+    </div>
+
+    <!-- Report tab -->
+    <div class="tab-panel active output-card" id="tab-report">
+      <div id="report-content"></div>
+    </div>
+
+    <!-- Sourcing tab -->
+    <div class="tab-panel output-card" id="tab-sourcing">
+      <h2>Buyer Candidates</h2>
+      <div id="sourcing-content"></div>
+    </div>
+
+    <!-- Valuation tab -->
+    <div class="tab-panel output-card" id="tab-valuation">
+      <h2>Valuation Analysis</h2>
+      <div id="valuation-content"></div>
+    </div>
+
+    <!-- Strategy tab -->
+    <div class="tab-panel output-card" id="tab-strategy">
+      <h2>Strategic Analysis</h2>
+      <div id="strategy-content"></div>
+    </div>
+
+    <!-- Risk tab -->
+    <div class="tab-panel output-card" id="tab-risk">
+      <h2>Risk Assessment</h2>
+      <div id="risk-content"></div>
+    </div>
+
+    <!-- Financing tab -->
+    <div class="tab-panel output-card" id="tab-financing">
+      <h2>Deal Financing</h2>
+      <div id="financing-content"></div>
+    </div>
+
+    <!-- Positioning tab -->
+    <div class="tab-panel output-card" id="tab-positioning">
+      <h2>Deal Positioning</h2>
+      <div id="positioning-content"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API = 'http://localhost:8000';
+
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function setAgent(id, state) {
+  const el = document.getElementById('agent-' + id);
+  if (!el) return;
+  el.classList.remove('active', 'done');
+  if (state === 'active') el.classList.add('active');
+  if (state === 'done') el.classList.add('done');
+}
+
+async function runAnalysis() {
+  const desc = document.getElementById('company-desc').value.trim();
+  if (!desc) { alert('Please enter a company description.'); return; }
+
+  const objectives = Array.from(document.querySelectorAll('.checkbox-item input:checked'))
+    .map(cb => cb.value);
+
+  // Show progress
+  document.getElementById('progress-wrap').style.display = 'block';
+  document.getElementById('results-wrap').style.display = 'none';
+  document.getElementById('run-btn').disabled = true;
+
+  // Animate agents sequentially
+  const agents = ['orchestrator','sourcing','valuation','strategy','risk','financing','positioning','critic','synthesizer'];
+  let i = 0;
+  const interval = setInterval(() => {
+    if (i > 0) setAgent(agents[i-1], 'done');
+    if (i < agents.length) setAgent(agents[i], 'active');
+    i++;
+    if (i > agents.length) clearInterval(interval);
+  }, 18000);
+
+  try {
+    const res = await fetch(`${API}/analyse`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        company_description: desc,
+        seller_objectives: objectives,
+        deal_parameters: {}
+      })
+    });
+
+    clearInterval(interval);
+    agents.forEach(a => setAgent(a, 'done'));
+
+    if (!res.ok) throw new Error(`Server error: ${res.status}`);
+    const data = await res.json();
+
+    renderResults(data);
+
+    setTimeout(() => {
+      document.getElementById('progress-wrap').style.display = 'none';
+      document.getElementById('results-wrap').style.display = 'block';
+      document.getElementById('run-btn').disabled = false;
+    }, 800);
+
+  } catch (err) {
+    clearInterval(interval);
+    document.getElementById('progress-wrap').style.display = 'none';
+    document.getElementById('run-btn').disabled = false;
+    document.getElementById('results-wrap').style.display = 'block';
+    document.getElementById('report-content').innerHTML =
+      `<div class="error-msg">⚠ Could not connect to the API server.<br><small>Make sure <code>uvicorn api:app --port 8000</code> is running.</small></div>`;
+    document.getElementById('results-wrap').style.display = 'block';
+  }
+}
+
+function renderResults(data) {
+  // Final report — render markdown-ish
+  document.getElementById('report-content').innerHTML = markdownToHtml(data.final_report || 'No report generated.');
+
+  // Sourcing
+  renderSourcing(data.sourcing_output);
+
+  // Valuation
+  renderValuation(data.valuation_output);
+
+  // Strategy
+  renderStrategy(data.strategy_output);
+
+  // Risk
+  renderRisk(data.risk_output);
+
+  // Financing
+  renderFinancing(data.financing_output);
+
+  // Positioning
+  renderPositioning(data.positioning_output);
+}
+
+function safeJSON(str) {
+  try { return JSON.parse(str); } catch { return null; }
+}
+
+function renderSourcing(raw) {
+  const el = document.getElementById('sourcing-content');
+  const data = safeJSON(raw);
+  if (!data || !data.buyers) { el.innerHTML = `<div class="json-view">${raw||''}</div>`; return; }
+  el.innerHTML = data.buyers.map(b => `
+    <div class="buyer-card">
+      <div class="buyer-header">
+        <div>
+          <div class="buyer-name">${b.name}</div>
+          <div class="buyer-meta">${b.type} &middot; ${b.hq}</div>
+        </div>
+        <span class="score ${b.fit_score>=8?'high':b.fit_score<=5?'low':''}">${b.fit_score}/10</span>
+      </div>
+      <div class="buyer-rationale">${b.rationale}</div>
+    </div>
+  `).join('');
+}
+
+function renderValuation(raw) {
+  const el = document.getElementById('valuation-content');
+  const data = safeJSON(raw);
+  if (!data) { el.innerHTML = `<div class="json-view">${raw||''}</div>`; return; }
+  el.innerHTML = `
+    <table>
+      <tr><th>Metric</th><th>Low</th><th>High</th></tr>
+      <tr><td>EV / Revenue</td><td>${data.ev_revenue_multiple?.low||'—'}</td><td>${data.ev_revenue_multiple?.high||'—'}</td></tr>
+      <tr><td>EV / EBITDA</td><td>${data.ev_ebitda_multiple?.low||'—'}</td><td>${data.ev_ebitda_multiple?.high||'—'}</td></tr>
+      <tr><td>Implied EV</td><td>${data.implied_ev?.low||'—'}</td><td>${data.implied_ev?.high||'—'}</td></tr>
+    </table>
+    <h3>Key Value Drivers</h3>
+    ${(data.value_drivers||[]).map(d=>`<p>• ${d}</p>`).join('')}
+  `;
+}
+
+function renderStrategy(raw) {
+  const el = document.getElementById('strategy-content');
+  const data = safeJSON(raw);
+  if (!data) { el.innerHTML = `<div class="json-view">${raw||''}</div>`; return; }
+  el.innerHTML = `
+    <h3>Synergy Opportunities</h3>
+    ${(data.synergies||[]).map(s=>`
+      <div class="buyer-card" style="margin-bottom:8px;">
+        <div class="buyer-meta" style="color:var(--blue);margin-bottom:4px;">${s.type}</div>
+        <div class="buyer-rationale">${s.description}</div>
+      </div>
+    `).join('')}
+    <h3>Integration Complexity</h3>
+    <p><strong>${data.integration_complexity||'—'}</strong> — ${data.integration_rationale||''}</p>
+    <h3>Competitive Positioning</h3>
+    <p>${data.competitive_positioning||''}</p>
+  `;
+}
+
+function renderRisk(raw) {
+  const el = document.getElementById('risk-content');
+  const data = safeJSON(raw);
+  if (!data || !data.risks) { el.innerHTML = `<div class="json-view">${raw||''}</div>`; return; }
+  el.innerHTML = `
+    <table>
+      <tr><th>Risk</th><th>Category</th><th>Rating</th><th>Mitigation</th></tr>
+      ${data.risks.map(r=>`
+        <tr>
+          <td>${r.risk}</td>
+          <td>${r.category}</td>
+          <td class="risk-${r.rating?.toLowerCase()}">${r.rating}</td>
+          <td>${r.mitigation}</td>
+        </tr>
+      `).join('')}
+    </table>
+  `;
+}
+
+function renderFinancing(raw) {
+  const el = document.getElementById('financing-content');
+  const data = safeJSON(raw);
+  if (!data) { el.innerHTML = `<div class="json-view">${raw||''}</div>`; return; }
+  const mix = data.consideration_mix || {};
+  el.innerHTML = `
+    <h3>Deal Structure</h3>
+    <p>${data.deal_structure||'—'}</p>
+    <h3>Consideration Mix</h3>
+    <table>
+      <tr><th>Cash</th><th>Stock</th><th>Earnout</th></tr>
+      <tr><td>${mix.cash||'—'}</td><td>${mix.stock||'—'}</td><td>${mix.earnout||'—'}</td></tr>
+    </table>
+    <h3>Leverage Capacity</h3>
+    <p>${data.leverage_capacity||''}</p>
+    <h3>Recommendation</h3>
+    <p>${data.recommended_structure||''}</p>
+  `;
+}
+
+function renderPositioning(raw) {
+  const el = document.getElementById('positioning-content');
+  const data = safeJSON(raw);
+  if (!data) { el.innerHTML = `<div class="json-view">${raw||''}</div>`; return; }
+  el.innerHTML = `
+    <h3>Growth Narrative</h3>
+    <p>${data.growth_narrative||''}</p>
+    <h3>Process Type</h3>
+    <p><strong>${data.process_type||'—'}</strong> — ${data.process_justification||''}</p>
+    <h3>Materials Needed</h3>
+    ${(data.materials_needed||[]).map(m=>`<p>• ${m}</p>`).join('')}
+  `;
+}
+
+function markdownToHtml(md) {
+  return md
+    // H2 headers
+    .replace(/^## (.+)$/gm, '<h2 class="report-h2">$1</h2>')
+    // H3 headers
+    .replace(/^### (.+)$/gm, '<h3 class="report-h3">$1</h3>')
+    // Bold
+    .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--white);font-weight:600">$1</strong>')
+    // Numbered items with bold title e.g. "1. **Name**, details"
+    .replace(/^\d+\.\s+<strong[^>]*>(.+?)<\/strong>(.*)$/gm,
+      '<div class="report-item"><div class="report-item-title">$1</div><div class="report-item-body">$2</div></div>')
+    // Numbered items plain e.g. "1. Name, details"
+    .replace(/^\d+\.\s+(.+)$/gm,
+      '<div class="report-item"><div class="report-item-body">$1</div></div>')
+    // Bullet points
+    .replace(/^[-•]\s+(.+)$/gm, '<div class="report-bullet">$1</div>')
+    // Spacing
+    .replace(/\n\n/g, '<div style="height:12px"></div>')
+    .replace(/\n/g, '<br>');
+}
+</script>
+</body>
+</html>

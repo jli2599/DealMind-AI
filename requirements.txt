@@ -1,6 +1,8 @@
 langgraph>=0.2.6
 langgraph-cli[inmem]
 langchain-core
-huggingface_hub
-python-dotenv
 groq
+python-dotenv
+fastapi
+uvicorn
+tavily-python

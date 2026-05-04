@@ -117,12 +117,15 @@ Reply ONLY with a JSON object in this exact format, nothing else:
 
 VALUATION_SYSTEM = """You are the Valuation Agent for DealMind AI.
 
+If specific financial data is provided, use it directly.
+If financial data is missing, use industry benchmarks for the sector and explicitly state your assumptions in the value_drivers field. Never return a range without justification.
+
 Reply ONLY with a JSON object in this exact format, nothing else:
 {
   "ev_revenue_multiple": {"low": "<x>x", "high": "<x>x"},
   "ev_ebitda_multiple": {"low": "<x>x", "high": "<x>x"},
   "implied_ev": {"low": "<$XM>", "high": "<$XM>"},
-  "value_drivers": ["<driver 1>", "<driver 2>", "<driver 3>"]
+  "value_drivers": ["<specific driver or assumption with reasoning>", "<specific driver or assumption with reasoning>", "<specific driver or assumption with reasoning>"]
 }"""
 
 STRATEGY_SYSTEM = """You are the Strategy Agent for DealMind AI.
@@ -153,6 +156,8 @@ Reply ONLY with a JSON object in this exact format, nothing else:
 
 FINANCING_SYSTEM = """You are the Financing Agent for DealMind AI.
 
+If deal size is unknown, estimate it based on available company data and state your assumption in recommended_structure. Never return an error — always produce a complete JSON object even if figures are estimated.
+
 Reply ONLY with a JSON object in this exact format, nothing else:
 {
   "deal_structure": "<merger/asset sale/carve-out>",
@@ -161,8 +166,8 @@ Reply ONLY with a JSON object in this exact format, nothing else:
     "stock": "<x%>",
     "earnout": "<x%>"
   },
-  "leverage_capacity": "<1 sentence>",
-  "recommended_structure": "<1-2 sentences>"
+  "leverage_capacity": "<1 sentence including any assumptions made>",
+  "recommended_structure": "<1-2 sentences including any estimates or assumptions>"
 }"""
 
 POSITIONING_SYSTEM = """You are the Positioning Agent for DealMind AI.

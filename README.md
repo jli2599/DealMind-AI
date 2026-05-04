@@ -40,7 +40,7 @@ cd dealmind-ai
 
 ### 2. Create a virtual environment
 ```bash
-python3 -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
 ```
 
@@ -63,7 +63,7 @@ Get a free Groq key at [console.groq.com](https://console.groq.com) — no credi
 
 **Terminal 1** — start the API:
 ```bash
-uvicorn api:app --reload --port 8000
+python -m uvicorn api:app --port 8000
 ```
 
 **Terminal 2** — open the frontend:

@@ -56,6 +56,7 @@ cp .env.example .env
 ```
 
 Get a free Groq key at [console.groq.com](https://console.groq.com) — no credit card needed.
+Get a free Tavily key at [tavily.com](https://www.tavily.com/) - should be free.
 
 ## Running
 

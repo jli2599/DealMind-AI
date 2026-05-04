@@ -59,7 +59,7 @@ Get a free Groq key at [console.groq.com](https://console.groq.com) — no credi
 
 ## Running
 
-### Option A — Web UI (recommended for demo)
+### Option A — Web UI (how it is supposed to be run)
 
 **Terminal 1** — start the API:
 ```bash
@@ -73,7 +73,7 @@ open index.html
 
 Enter a company description, select seller objectives, and hit **Run Analysis**. The UI shows a live progress tracker and renders the final report in tabbed sections.
 
-### Option B — LangGraph Studio (recommended for development)
+### Option B — LangGraph Studio (to see the behind the scenes)
 
 ```bash
 langgraph dev --port 8123

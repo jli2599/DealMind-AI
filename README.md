@@ -20,47 +20,51 @@ The **sourcing agent** is fully expanded with web search tooling to ground buyer
 
 ```
 dealmind-ai/
-├── graph.py          # LangGraph graph — all agents and routing logic
-├── api.py            # FastAPI server — exposes /analyse endpoint
-├── index.html        # Frontend — company input form and tabbed report UI
-├── requirements.txt  # Python dependencies
-├── langgraph.json    # LangGraph Studio config
-├── .env.example      # Token template — copy to .env
-├── .gitignore        # Keeps secrets and checkpoints out of git
+├── graph.py              # LangGraph graph — all agents and routing logic
+├── sourcing_agent.py     # Expanded sourcing subgraph with Tavily web search
+├── api.py                # FastAPI server — exposes /analyse endpoint
+├── index.html            # Frontend — company input form and tabbed report UI
+├── requirements.txt      # Python dependencies
+├── langgraph.json        # LangGraph Studio config
+├── setup.sh              # One-command setup for Mac/Linux
+├── .env.example          # API key template — copy to .env and fill in keys
+├── .gitignore            # Keeps secrets and checkpoints out of git
 └── README.md
 ```
 
+## Prerequisites
+
+- **Python 3.12** — Python 3.13 is not supported
+- **Groq API key** — free at [console.groq.com](https://console.groq.com), no credit card needed
+- **Tavily API key** — free at [tavily.com](https://www.tavily.com)
+
 ## Setup
 
-### 1. Clone the repo
+### Option A — Automated (recommended)
+
 ```bash
-git clone https://github.com/your-username/dealmind-ai.git
-cd dealmind-ai
+bash setup.sh
 ```
 
-### 2. Create a virtual environment
+This creates the virtual environment, installs dependencies, and copies `.env.example` to `.env`. Open `.env` and paste in your Groq and Tavily API keys before running.
+
+---
+
+### Option B — Manual
+
 ```bash
 python3.12 -m venv .venv
 source .venv/bin/activate
-```
-
-### 3. Install dependencies
-```bash
 pip install -r requirements.txt
-```
-
-### 4. Add your API keys
-```bash
 cp .env.example .env
 # open .env and fill in your keys
 ```
 
-Get a free Groq key at [console.groq.com](https://console.groq.com) — no credit card needed.
-Get a free Tavily key at [tavily.com](https://www.tavily.com/) - should be free.
+> **Important:** Always run uvicorn as `python -m uvicorn` rather than just `uvicorn` to ensure the correct virtual environment Python is used.
 
 ## Running
 
-### Option A — Web UI (how it is supposed to be run)
+### Option A — Web UI (recommended)
 
 **Terminal 1** — start the API:
 ```bash
@@ -74,7 +78,7 @@ open index.html
 
 Enter a company description, select seller objectives, and hit **Run Analysis**. The UI shows a live progress tracker and renders the final report in tabbed sections.
 
-### Option B — LangGraph Studio (to see the behind the scenes)
+### Option B — LangGraph Studio (to inspect agent execution)
 
 ```bash
 langgraph dev --port 8123
@@ -84,7 +88,8 @@ Then open: **https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:8123**
 
 Type your deal description into the **User Message** field and hit Submit. Studio shows each node executing in real time with full state inspection at every step.
 
-### Option C — Terminal
+### Option C — Terminal only
+
 ```bash
 python graph.py
 ```
@@ -103,7 +108,7 @@ Management willing to roll 15% equity. Run a full M&A analysis.
 
 Uses **Llama 3.3 70B Instruct** via [Groq](https://console.groq.com) — fast, free tier, no GPU required. Groq's free tier provides 14,400 requests/day which is sufficient for development and demo use.
 
-> **Note on rate limits:** Each full analysis makes 10-15 LLM calls. On Groq's free tier (12,000 tokens per minute), running multiple analyses back-to-back may trigger a 429 rate limit error (can happen on 2-3 consecutive runs). If this happens, wait some time before retrying — the token window resets every minute, or ideally replace the free API token with paid tokens. The code includes automatic retry logic with exponential backoff, but very rapid consecutive runs may still hit the limit. For demos, allow at least 1-2 minutes between runs.
+> **Note on rate limits:** Each full analysis makes 10–15 LLM calls. On Groq's free tier (12,000 tokens per minute), running multiple analyses back-to-back may trigger a 429 rate limit error. If this happens, wait 1–2 minutes before retrying — the token window resets every minute. The code includes automatic retry logic with exponential backoff, but very rapid consecutive runs may still hit the limit.
 
 ## Agent Design
 

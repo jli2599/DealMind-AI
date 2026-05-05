@@ -66,8 +66,9 @@ cp .env.example .env
 
 ### Option A — Web UI (recommended)
 
-**Terminal 1** — start the API:
+**Terminal 1** — start the API (make sure the environment is active):
 ```bash
+source .venv/bin/activate
 python -m uvicorn api:app --port 8000
 ```
 
@@ -81,6 +82,7 @@ Enter a company description, select seller objectives, and hit **Run Analysis**.
 ### Option B — LangGraph Studio (to inspect agent execution)
 
 ```bash
+source .venv/bin/activate
 langgraph dev --port 8123
 ```
 
